@@ -74,5 +74,5 @@ dependencies {
     // RTMP/RTMPS Live Streaming (YouTube, Twitch, Kick, Facebook, OBS)
     implementation("com.github.pedroSG94.RootEncoder:library:2.8.1")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 }
