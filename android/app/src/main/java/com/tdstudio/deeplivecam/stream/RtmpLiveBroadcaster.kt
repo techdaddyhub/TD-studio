@@ -6,13 +6,24 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.SurfaceTexture
 import android.view.Surface
 import com.pedro.common.ConnectChecker
-import com.pedro.encoder.input.gl.render.filters.SurfaceFilterRender
+import com.pedro.common.TimeUtils
 import com.pedro.encoder.input.sources.audio.MicrophoneSource
-import com.pedro.encoder.input.sources.video.NoVideoSource
+import com.pedro.encoder.input.sources.video.VideoSource
 import com.pedro.library.generic.GenericStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.max
 import kotlin.math.min
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * Direct RTMP/RTMPS Live Broadcaster powered by RootEncoder.
@@ -25,14 +36,18 @@ class RtmpLiveBroadcaster(
 ) : ConnectChecker {
 
     private var genericStream: GenericStream? = null
-    private var outputSurface: Surface? = null
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private var videoSource: SwappedVideoSource? = null
 
     @Volatile
     var isStreaming: Boolean = false
         private set
 
-    fun start(rtmpUrl: String, width: Int = 720, height: Int = 1280, bitrateKbps: Int = 2500): Boolean {
+    fun start(
+        rtmpUrl: String,
+        width: Int = 720,
+        height: Int = 1280,
+        bitrateKbps: Int = 2500,
+    ): Boolean {
         if (isStreaming) return true
         val trimmed = rtmpUrl.trim()
         if (!trimmed.startsWith("rtmp://") && !trimmed.startsWith("rtmps://")) {
@@ -40,16 +55,8 @@ class RtmpLiveBroadcaster(
             return false
         }
         return try {
-            val stream = GenericStream(context, this, NoVideoSource(), MicrophoneSource()).apply {
-                getGlInterface().setForceRender(true, 30)
-            }
-            val surfaceFilter = SurfaceFilterRender { surfaceTexture ->
-                surfaceTexture.setDefaultBufferSize(width, height)
-                outputSurface?.release()
-                outputSurface = Surface(surfaceTexture)
-            }
-            stream.getGlInterface().setFilter(surfaceFilter)
-
+            val source = SwappedVideoSource()
+            val stream = GenericStream(context, this, source, MicrophoneSource())
             val videoOk = stream.prepareVideo(width, height, bitrateKbps * 1024)
             val audioOk = stream.prepareAudio(44100, true, 128 * 1024)
             if (!videoOk || !audioOk) {
@@ -58,6 +65,7 @@ class RtmpLiveBroadcaster(
                 return false
             }
 
+            videoSource = source
             genericStream = stream
             stream.startStream(trimmed)
             isStreaming = true
@@ -71,26 +79,9 @@ class RtmpLiveBroadcaster(
     }
 
     fun pushFrame(bitmap: Bitmap) {
-        val surface = outputSurface ?: return
         if (!isStreaming) return
-        try {
-            val canvas: Canvas = surface.lockCanvas(null) ?: return
-            try {
-                canvas.drawColor(Color.BLACK)
-                val cw = canvas.width.toFloat()
-                val ch = canvas.height.toFloat()
-                val scale = min(cw / bitmap.width.toFloat(), ch / bitmap.height.toFloat())
-                val dw = bitmap.width * scale
-                val dh = bitmap.height * scale
-                val left = (cw - dw) / 2f
-                val top = (ch - dh) / 2f
-                canvas.drawBitmap(bitmap, null, RectF(left, top, left + dw, top + dh), paint)
-            } finally {
-                surface.unlockCanvasAndPost(canvas)
-            }
-        } catch (_: Exception) {
-            // Surface may be mid-teardown on stop.
-        }
+        val copy = bitmap.copy(Bitmap.Config.ARGB_8888, false) ?: return
+        videoSource?.updateFrame(copy)
     }
 
     fun stop() {
@@ -103,8 +94,7 @@ class RtmpLiveBroadcaster(
         } catch (_: Exception) {
         }
         genericStream = null
-        outputSurface?.release()
-        outputSurface = null
+        videoSource = null
         onStateChanged(false, "RTMP stream stopped")
     }
 
@@ -135,4 +125,99 @@ class RtmpLiveBroadcaster(
     }
 
     override fun onAuthSuccess() {}
+
+    private class SwappedVideoSource : VideoSource() {
+        @Volatile
+        private var running = false
+        private var job: Job? = null
+        private var surface: Surface? = null
+        private val pendingFrame = AtomicReference<Bitmap?>(null)
+        private var currentFrame: Bitmap? = null
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
+        fun updateFrame(bmp: Bitmap) {
+            // Only unconsumed pending frames are recycled here; the render loop owns `currentFrame`.
+            val dropped = pendingFrame.getAndSet(bmp)
+            if (dropped != null && dropped !== bmp && !dropped.isRecycled) {
+                dropped.recycle()
+            }
+        }
+
+        override fun create(width: Int, height: Int, fps: Int, rotation: Int): Boolean = true
+
+        override fun start(surfaceTexture: SurfaceTexture) {
+            this.surfaceTexture = surfaceTexture
+            if (running) return
+            val targetFps = if (fps > 0) fps else 30
+            val targetW = if (width > 0) width else 720
+            val targetH = if (height > 0) height else 1280
+            surfaceTexture.setDefaultBufferSize(targetW, targetH)
+            surface = Surface(surfaceTexture)
+            running = true
+            job = CoroutineScope(Dispatchers.IO).launch {
+                val frameInterval = 1_000_000_000L / targetFps
+                var time = TimeUtils.getCurrentTimeNano()
+                while (running) {
+                    try {
+                        val next = pendingFrame.getAndSet(null)
+                        if (next != null) {
+                            val old = currentFrame
+                            currentFrame = next
+                            if (old != null && old !== next && !old.isRecycled) {
+                                old.recycle()
+                            }
+                        }
+                        val canvas: Canvas? = surface?.lockCanvas(null)
+                        if (canvas != null) {
+                            try {
+                                canvas.drawColor(Color.BLACK)
+                                val bmp = currentFrame
+                                if (bmp != null && !bmp.isRecycled) {
+                                    val cw = canvas.width.toFloat()
+                                    val ch = canvas.height.toFloat()
+                                    val scale = min(cw / bmp.width.toFloat(), ch / bmp.height.toFloat())
+                                    val dw = bmp.width * scale
+                                    val dh = bmp.height * scale
+                                    val left = (cw - dw) / 2f
+                                    val top = (ch - dh) / 2f
+                                    canvas.drawBitmap(bmp, null, RectF(left, top, left + dw, top + dh), paint)
+                                }
+                            } finally {
+                                surface?.unlockCanvasAndPost(canvas)
+                            }
+                        }
+                    } catch (_: Exception) {
+                    } finally {
+                        time += frameInterval
+                        val now = TimeUtils.getCurrentTimeNano()
+                        if (now - time > frameInterval) time = now
+                        delay(max(time - now, 0).nanoseconds)
+                    }
+                }
+            }
+        }
+
+        override fun stop() {
+            running = false
+            runBlocking { job?.cancelAndJoin() }
+            job = null
+            surface?.release()
+            surface = null
+        }
+
+        override fun release() {
+            stop()
+            val pending = pendingFrame.getAndSet(null)
+            if (pending != null && !pending.isRecycled) {
+                pending.recycle()
+            }
+            val cur = currentFrame
+            currentFrame = null
+            if (cur != null && !cur.isRecycled) {
+                cur.recycle()
+            }
+        }
+
+        override fun isRunning(): Boolean = running
+    }
 }
