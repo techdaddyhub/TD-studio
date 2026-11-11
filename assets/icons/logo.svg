@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 260" width="1120" height="260">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14171D"/>
+      <stop offset="100%" stop-color="#0B0E11"/>
+    </linearGradient>
+    <linearGradient id="goldText" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FCD535"/>
+      <stop offset="60%" stop-color="#F0B90B"/>
+      <stop offset="100%" stop-color="#D49B00"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="1112" height="252" rx="34" fill="url(#bg)" stroke="#F0B90B" stroke-opacity="0.45" stroke-width="3"/>
+  <g transform="translate(26, 20) scale(0.43)">
+    <rect x="28" y="28" width="456" height="456" rx="108" fill="#0B0E11" stroke="url(#goldText)" stroke-width="12"/>
+    <polygon points="256,94 418,256 256,418 94,256" fill="none" stroke="url(#goldText)" stroke-opacity="0.45" stroke-width="8"/>
+    <circle cx="256" cy="256" r="114" fill="none" stroke="url(#goldText)" stroke-width="14"/>
+    <path d="M250,146 L200,156 L169,210 L168,268 L190,329 L235,366 L250,366 Z" fill="url(#goldText)"/>
+    <path d="M262,146 L312,156 L343,210 L344,268 L322,329 L277,366 L262,366 Z" fill="none" stroke="url(#goldText)" stroke-width="12" stroke-linejoin="round"/>
+    <rect x="251.5" y="126" width="9" height="260" rx="4.5" fill="#FFF0A5"/>
+    <circle cx="381" cy="131" r="14" fill="#0ECB81"/>
+  </g>
+  <text x="275" y="124" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="68" font-weight="800" letter-spacing="4" fill="#EAECEF">DEEP LIVE <tspan fill="url(#goldText)">CAM</tspan></text>
+  <rect x="278" y="150" width="235" height="42" rx="21" fill="#F0B90B" fill-opacity="0.14" stroke="#F0B90B" stroke-opacity="0.6" stroke-width="2"/>
+  <circle cx="304" cy="171" r="6" fill="#0ECB81"/>
+  <text x="322" y="178" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="2" fill="#FCD535">GOLD STUDIO EDITION</text>
+</svg>

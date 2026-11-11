@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="obsidian" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1C2028"/>
+      <stop offset="100%" stop-color="#090C0F"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEE05C"/>
+      <stop offset="55%" stop-color="#F0B90B"/>
+      <stop offset="100%" stop-color="#AF7A00"/>
+    </linearGradient>
+    <radialGradient id="amberGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F0B90B" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#0B0E11" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="28" y="28" width="456" height="456" rx="108" fill="url(#obsidian)" stroke="url(#gold)" stroke-width="10"/>
+  <rect x="44" y="44" width="424" height="424" rx="94" fill="url(#amberGlow)" stroke="#F0B90B" stroke-opacity="0.28" stroke-width="2"/>
+  <polygon points="256,94 418,256 256,418 94,256" fill="none" stroke="url(#gold)" stroke-opacity="0.45" stroke-width="8"/>
+  <polygon points="256,78 272,94 256,110 240,94" fill="url(#gold)"/>
+  <polygon points="256,402 272,418 256,434 240,418" fill="url(#gold)"/>
+  <polygon points="78,256 94,240 110,256 94,272" fill="url(#gold)"/>
+  <polygon points="402,256 418,240 434,256 418,272" fill="url(#gold)"/>
+  <circle cx="256" cy="256" r="114" fill="none" stroke="url(#gold)" stroke-width="14" stroke-dasharray="146 33"/>
+  <path d="M250,146 L200,156 L169,210 L168,268 L190,329 L235,366 L250,366 Z" fill="url(#gold)"/>
+  <polygon points="192,235 232,245 228,260 196,253" fill="#0E1116"/>
+  <path d="M262,146 L312,156 L343,210 L344,268 L322,329 L277,366 L262,366 Z" fill="none" stroke="url(#gold)" stroke-width="12" stroke-linejoin="round"/>
+  <polygon points="320,235 280,245 284,260 316,253" fill="url(#gold)"/>
+  <rect x="274" y="284" width="48" height="9" rx="4.5" fill="url(#gold)"/>
+  <rect x="274" y="306" width="36" height="9" rx="4.5" fill="url(#gold)" opacity="0.88"/>
+  <rect x="274" y="328" width="22" height="9" rx="4.5" fill="url(#gold)" opacity="0.75"/>
+  <rect x="251.5" y="126" width="9" height="260" rx="4.5" fill="#FFF0A5"/>
+  <circle cx="381" cy="131" r="21" fill="#0B0E11"/>
+  <circle cx="381" cy="131" r="12" fill="#0ECB81"/>
+</svg>

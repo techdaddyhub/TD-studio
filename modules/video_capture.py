@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import time
-from typing import Optional, Tuple, Callable
+from typing import Optional, Tuple, Callable, Union
 import platform
 import threading
 
@@ -11,7 +11,7 @@ if platform.system() == "Windows":
 
 
 class VideoCapturer:
-    def __init__(self, device_index: int):
+    def __init__(self, device_index: Union[int, str]):
         self.device_index = device_index
         self.frame_callback = None
         self._current_frame = None
@@ -23,8 +23,8 @@ class VideoCapturer:
         self.actual_height: int = 0
         self.actual_fps: float = 0.0
 
-        # Initialize Windows-specific components if on Windows
-        if platform.system() == "Windows":
+        # Initialize Windows-specific components only for numeric local device indices
+        if platform.system() == "Windows" and isinstance(device_index, int):
             self.graph = FilterGraph()
             # Verify device exists
             devices = self.graph.get_input_devices()
@@ -36,7 +36,10 @@ class VideoCapturer:
     def start(self, width: int = 960, height: int = 540, fps: int = 60) -> bool:
         """Initialize and start video capture"""
         try:
-            if platform.system() == "Windows":
+            is_network_stream = isinstance(self.device_index, str)
+            if is_network_stream:
+                self.cap = cv2.VideoCapture(self.device_index)
+            elif platform.system() == "Windows":
                 # device_index comes from pygrabber.FilterGraph (DirectShow
                 # enumeration), so open with DSHOW first to preserve mapping.
                 # MSMF and DirectShow enumerate cameras in different orders, so
@@ -80,9 +83,9 @@ class VideoCapturer:
                 raise RuntimeError("Failed to open camera")
 
             # Belt-and-braces: also set via cap.set() for backends that honor
-            # post-open changes (MSMF, V4L2). DSHOW ignores these, but the
-            # construction params above already handled it.
-            if platform.system() != "Windows":
+            # post-open changes (MSMF, V4L2). DSHOW ignores these, and network
+            # streams ignore device properties.
+            if not is_network_stream and platform.system() != "Windows":
                 self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
                 self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)

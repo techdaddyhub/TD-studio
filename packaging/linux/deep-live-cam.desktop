@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Deep Live Cam
+Comment=Real-time face swap and video studio (Gold Studio Edition)
+Exec=Deep-Live-Cam
+Icon=deep-live-cam
+Terminal=false
+Categories=AudioVideo;Video;Graphics;
+StartupWMClass=Deep-Live-Cam
