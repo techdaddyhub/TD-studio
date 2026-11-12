@@ -45,7 +45,7 @@ object OnnxInitializerExtractor {
             if (fieldNumber == 5 && wireType == 2) {
                 val tensorSize = readVarint(graphStream)
                 // Only small initializers can be [512, 512] (~1MB fp32 or ~512KB fp16).
-                if (tensorSize <= 2_200_000L) {
+                if (tensorSize in 1L..4_000_000L) {
                     val bytes = readExact(graphStream, tensorSize.toInt())
                     val parsed = parseTensorIfEmap(bytes)
                     if (parsed != null) {
@@ -65,6 +65,7 @@ object OnnxInitializerExtractor {
         val dims = ArrayList<Long>(2)
         var dataType = 0
         val floatList = ArrayList<Float>()
+        val int32List = ArrayList<Int>()
         var rawData: ByteArray? = null
 
         var pos = 0
@@ -108,6 +109,12 @@ object OnnxInitializerExtractor {
                     repeat(count) { if (bb.remaining() >= 4) floatList.add(bb.float) }
                     pos += len
                 }
+                field == 5 && wire == 0 -> int32List.add(readV().toInt())
+                field == 5 && wire == 2 -> {
+                    val len = readV().toInt()
+                    val end = (pos + len).coerceAtMost(bytes.size)
+                    while (pos < end) int32List.add(readV().toInt())
+                }
                 field == 9 && wire == 2 -> {
                     val len = readV().toInt()
                     val safeLen = len.coerceAtMost(bytes.size - pos)
@@ -118,7 +125,12 @@ object OnnxInitializerExtractor {
                     when (wire) {
                         0 -> readV()
                         1 -> pos += 8
-                        2 -> pos += readV().toInt()
+                        // Compute skipLen before adding to pos so readV()'s mutation of pos isn't clobbered.
+                        2 -> {
+                            val skipLen = readV().toInt()
+                            if (skipLen < 0) break
+                            pos += skipLen
+                        }
                         5 -> pos += 4
                         else -> break
                     }
@@ -132,6 +144,9 @@ object OnnxInitializerExtractor {
 
         if (floatList.size == EXPECTED_COUNT) {
             return FloatArray(EXPECTED_COUNT) { floatList[it] }
+        }
+        if (dataType == 10 && int32List.size == EXPECTED_COUNT) {
+            return FloatArray(EXPECTED_COUNT) { halfToFloat(int32List[it] and 0xFFFF) }
         }
 
         val raw = rawData ?: return null

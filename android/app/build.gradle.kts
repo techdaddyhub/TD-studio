@@ -14,8 +14,8 @@ android {
         applicationId = "com.tdstudio.deeplivecam"
         minSdk = 26
         targetSdk = 35
-        versionCode = 215
-        versionName = "2.1.5-gold"
+        versionCode = 220
+        versionName = "2.1.10-gold"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
