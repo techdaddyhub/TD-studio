@@ -343,12 +343,10 @@ def run() -> None:
     parse_args()
     if not pre_check():
         return
-    for frame_processor in get_frame_processors_modules(modules.globals.frame_processors):
-        if not frame_processor.pre_check():
-            return
-    # Pre-load face analyser in main thread before GUI starts
-    #from modules.face_analyser import get_face_analyser
-    #get_face_analyser()
+    if modules.globals.headless:
+        for frame_processor in get_frame_processors_modules(modules.globals.frame_processors):
+            if not frame_processor.pre_check():
+                return
     limit_resources()
     if modules.globals.headless:
         start()

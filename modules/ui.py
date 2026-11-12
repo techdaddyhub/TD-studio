@@ -69,7 +69,7 @@ from modules.face_analyser import (
 )
 from modules.gettext import LanguageManager
 from modules.gpu_processing import gpu_cvt_color, gpu_flip, gpu_resize
-from modules.model_downloader import is_present
+from modules.model_downloader import ensure_any, ensure_insightface_pack, is_present
 from modules.paths import ICONS_DIR
 from modules.platform_info import accelerator_label
 from modules.processors.frame.core import get_frame_processors_modules
@@ -1147,8 +1147,26 @@ class MainWindow(QMainWindow):
         if _check_core_models_present():
             update_status("Core swapper ONNX models are present and ready.")
             self._model_pill.setText(_("● Models Ready"))
-        else:
-            update_status("Models will auto-download from HuggingFace on first Start / Live.")
+            return
+        if getattr(self, "_downloading_models", False):
+            update_status("Model download already in progress...")
+            return
+        self._downloading_models = True
+        self._model_pill.setText(_("↓ Downloading..."))
+        update_status("Downloading swapper & face-analysis ONNX models in background...")
+
+        def _fetch() -> None:
+            try:
+                ok_swap = ensure_any(["inswapper_128_fp16.onnx", "inswapper_128.onnx"]) is not None
+                ok_pack = ensure_insightface_pack("buffalo_l")
+                if ok_swap and ok_pack:
+                    update_status("Models downloaded and ready!")
+                else:
+                    update_status("Model download incomplete; check network and retry.")
+            finally:
+                self._downloading_models = False
+
+        threading.Thread(target=_fetch, daemon=True).start()
 
     def _on_resolution_change(self, idx: int) -> None:
         if 0 <= idx < len(self._resolution_options):

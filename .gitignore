@@ -32,3 +32,6 @@ switch_states.json
 install.bat
 /.claude
 *.bat
+/dist/
+/build/
+/android/.gradle/

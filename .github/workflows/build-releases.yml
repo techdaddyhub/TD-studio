@@ -22,7 +22,7 @@ jobs:
             os: windows-latest
             archive_name: Deep-Live-Cam-Windows-x64.zip
           - label: linux-x64
-            os: ubuntu-latest
+            os: ubuntu-22.04
             archive_name: Deep-Live-Cam-Linux-x64.tar.gz
           - label: macos-x64
             os: macos-15-intel
